@@ -17,42 +17,30 @@ using Supervised Distant Supervision".
 #           Joel Kuiper <me@joelkuiper.com>
 #           Byron Wallce <byron.wallace@utexas.edu>
 
+# Modified By: Harry Scells <scellsh@qut.edu.au>
 
-
-import json
-import uuid
-import numpy as np
-import sys
-import os
 import logging
-from scipy.sparse import diags
-import fnmatch
-import re
-import sklearn
-from scipy.sparse import lil_matrix, csc_matrix
+import uuid
+
 import numpy as np
-import scipy as sp
-from sklearn.feature_extraction.text import HashingVectorizer
-from sklearn.feature_extraction import DictVectorizer
-from sklearn.preprocessing import normalize
-from scipy.sparse import diags
-
-
-
 import robotreviewer
-from robotreviewer import config
-from robotreviewer.ml.classifier import MiniClassifier
+import scipy as sp
 from robotreviewer.lexicons.drugbank import Drugbank
+from robotreviewer.ml.classifier import MiniClassifier
+from scipy.sparse import diags
+from scipy.sparse import diags
+from scipy.sparse import lil_matrix
+from sklearn.feature_extraction import DictVectorizer
+from sklearn.feature_extraction.text import HashingVectorizer
+from sklearn.preprocessing import normalize
+
 # from robotreviewer.textprocessing.abbreviations import Abbreviations
-from robotreviewer.textprocessing import tokenizer
 
 
 log = logging.getLogger(__name__)
 
 
-
 class PICORobot:
-
     def __init__(self, top_k=2, min_k=1):
         """
         In most cases, a fixed number of sentences (top_k) will be
@@ -88,19 +76,16 @@ class PICORobot:
 
         logging.debug("IDF weights loaded")
 
-
         self.vec = PICO_vectorizer()
         self.models = [self.P_clf, self.I_clf, self.O_clf]
         self.idfs = [self.P_idf, self.I_idf, self.O_idf]
         self.PICO_domains = ["Population", "Intervention", "Outcomes"]
-
 
         # if config.USE_METAMAP:
         #     self.metamap = MetaMap.get_instance()
 
         self.top_k = top_k
         self.min_k = min_k
-
 
     def annotate(self, data, top_k=3, min_k=1, alpha=.7):
 
@@ -111,22 +96,19 @@ class PICORobot:
         Default alpha was totally scientifically set.
         """
 
-
         doc_text = data.get("parsed_text")
-        
+
         if not doc_text:
             # we've got to know the text at least..
             return data
 
         doc_len = len(data['text'])
 
-
         if top_k is None:
             top_k = self.top_k
 
         if min_k is None:
             min_k = self.min_k
-
 
         marginalia = []
         structured_data = []
@@ -144,17 +126,18 @@ class PICORobot:
 
             log.debug('Starting prediction')
             log.debug('vectorizing')
-            doc_sents_X = self.vec.transform(doc_text, extra_features=positional_features, idf=idf)
+            doc_sents_X = self.vec.transform(doc_text, extra_features=positional_features,
+                                             idf=idf)
 
             log.debug('predicting sentence probabilities')
             doc_sents_preds = model.predict_proba(doc_sents_X)
 
             log.info('finding best predictive sents')
-            high_prob_sent_indices = np.argsort(doc_sents_preds)[:-top_k-1:-1]
+            high_prob_sent_indices = np.argsort(doc_sents_preds)[:-top_k - 1:-1]
 
             # filter
             filtered_high_prob_sent_indices = \
-                                              high_prob_sent_indices[doc_sents_preds[high_prob_sent_indices] >= alpha]
+                high_prob_sent_indices[doc_sents_preds[high_prob_sent_indices] >= alpha]
 
             log.info('Prediction done!')
 
@@ -163,22 +146,24 @@ class PICORobot:
             else:
                 high_prob_sent_indices = filtered_high_prob_sent_indices
 
-
             high_prob_sents = [doc_sents[i] for i in high_prob_sent_indices]
             high_prob_start_i = [doc_sent_start_i[i] for i in high_prob_sent_indices]
             high_prob_end_i = [doc_sent_end_i[i] for i in high_prob_sent_indices]
-            high_prob_prefixes = [doc_text.string[max(0, offset-20):offset] for offset in high_prob_start_i]
-            high_prob_suffixes = [doc_text.string[offset: min(doc_len, offset+20)] for offset in high_prob_end_i]
+            high_prob_prefixes = [doc_text.string[max(0, offset - 20):offset] for offset in
+                                  high_prob_start_i]
+            high_prob_suffixes = [doc_text.string[offset: min(doc_len, offset + 20)] for offset
+                                  in high_prob_end_i]
 
             annotations = [{"content": sent[0],
                             "position": sent[1],
                             "uuid": str(uuid.uuid1()),
                             "prefix": sent[2],
-                            "suffix": sent[3]} for sent in zip(high_prob_sents, high_prob_start_i,
-                                                               high_prob_prefixes,
-                                                               high_prob_suffixes)]
+                            "suffix": sent[3]} for sent in
+                           zip(high_prob_sents, high_prob_start_i,
+                               high_prob_prefixes,
+                               high_prob_suffixes)]
 
-            structured_data.append({"domain":domain,
+            structured_data.append({"domain": domain,
                                     "text": high_prob_sents,
                                     "annotations": annotations})
 
@@ -192,12 +177,12 @@ class PICORobot:
         quintile_cutoff = num_sents / 5
 
         if quintile_cutoff == 0:
-            sentence_quintiles = [{"DocTooSmallForQuintiles" : 1} for ii in range(num_sents)]
+            sentence_quintiles = [{"DocTooSmallForQuintiles": 1} for ii in range(num_sents)]
             log.warning("Tiny file encountered... len=%d" % num_sents)
         else:
-            sentence_quintiles = [{"DocumentPositionQuintile%d" % (ii/quintile_cutoff): 1} for ii in range(num_sents)]
+            sentence_quintiles = [{"DocumentPositionQuintile%d" % (ii / quintile_cutoff): 1} for
+                                  ii in range(num_sents)]
         return sentence_quintiles
-
 
     @staticmethod
     def get_marginalia(data):
@@ -213,8 +198,8 @@ class PICORobot:
             })
         return marginalia
 
-class PICO_vectorizer:
 
+class PICO_vectorizer:
     def __init__(self):
         self.vectorizer = HashingVectorizer(ngram_range=(1, 2))
         self.dict_vectorizer = DictVectorizer()
@@ -231,20 +216,20 @@ class PICO_vectorizer:
             'DocumentPositionQuintile4',
             'DocumentPositionQuintile5',
             'DocumentPositionQuintile6']
-        self.dict_vectorizer.vocabulary_ = {k: i for i, k in enumerate(self.dict_vectorizer.feature_names_)}
+        self.dict_vectorizer.vocabulary_ = {k: i for i, k in
+                                            enumerate(self.dict_vectorizer.feature_names_)}
 
         self.drugbank = Drugbank()
 
     def token_contains_number(self, token):
         return any(char.isdigit() for char in token)
 
-    def is_number(self,num):
+    def is_number(self, num):
         try:
             float(num)
             return True
         except ValueError:
             return False
-
 
     def transform(self, doc_text, extra_features=None, idf=None):
         # first hashing vectorizer calculates integer token counts
@@ -266,21 +251,20 @@ class PICO_vectorizer:
         if extra_features:
             X_extra_features = self.dict_vectorizer.transform(extra_features)
             # now combine feature sets.
-            feature_matrix = sp.sparse.hstack((normalize(X_text), X_numeric, X_extra_features)).tocsr()
+            feature_matrix = sp.sparse.hstack(
+                (normalize(X_text), X_numeric, X_extra_features)).tocsr()
         else:
-            #now combine feature sets.
+            # now combine feature sets.
             feature_matrix = sp.sparse.hstack((normalize(X_text), X_numeric)).tocsr()
 
         return feature_matrix
-
-
 
     def extract_numeric_features(self, doc_text, n, normalize_matrix=False):
         # number of numeric features (this is fixed
         # for now; may wish to revisit this)
         m = 12
 
-        X_numeric = lil_matrix((n,m))#sp.sparse.csc_matrix((n,m))
+        X_numeric = lil_matrix((n, m))  # sp.sparse.csc_matrix((n,m))
         for sentence_index, sentence in enumerate(doc_text.sents):
             X_numeric[sentence_index, :] = self.extract_structural_features(sentence)
             # column-normalize
@@ -288,7 +272,6 @@ class PICO_vectorizer:
         if normalize_matrix:
             X_numeric = normalize(X_numeric, axis=0)
         return X_numeric
-
 
     def extract_structural_features(self, sentence):
 
@@ -306,13 +289,13 @@ class PICO_vectorizer:
         else:
             fv[3] = 1
 
-        line_lens = [len(line) for line in sent_text.split("\n") if not line.strip()==""]
+        line_lens = [len(line) for line in sent_text.split("\n") if not line.strip() == ""]
 
         if line_lens:
             ##
             # maybe the *fraction* of lines less then... 10 chars?
             num_short_lines = float(len([len_ for len_ in line_lens if len_ <= 10]))
-            frac_short_lines = float(num_short_lines)/float(len(line_lens))
+            frac_short_lines = float(num_short_lines) / float(len(line_lens))
         else:
             num_short_lines, frac_short_lines = 0, 0
 
@@ -323,7 +306,7 @@ class PICO_vectorizer:
         else:
             fv[6] = 1
 
-        #fv[4] = 1 if frac_short_lines >= .25 else 0
+        # fv[4] = 1 if frac_short_lines >= .25 else 0
 
         tokens = [w.text for w in sentence]
         num_numbers = sum([self.token_contains_number(t) for t in tokens])
@@ -333,7 +316,7 @@ class PICO_vectorizer:
             # 1 does it contain more than
             num_frac = num_numbers / float(len(tokens))
             # change to .1 and .3???
-            #fv[2] = num_frac if num_frac > .2 else 0.0
+            # fv[2] = num_frac if num_frac > .2 else 0.0
             if num_frac < .2:
                 fv[7] = 1
             elif num_frac < .4:
@@ -350,10 +333,9 @@ class PICO_vectorizer:
         return fv
 
 
-
 def main():
     # Sample code to make this run
-    import unidecode, codecs, pprint
+    import codecs, pprint
     # Read in example input to the text string
     with codecs.open('tests/example.txt', 'r', 'ISO-8859-1') as f:
         text = f.read()
