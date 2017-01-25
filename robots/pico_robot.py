@@ -79,7 +79,7 @@ class PICORobot:
         self.vec = PICO_vectorizer()
         self.models = [self.P_clf, self.I_clf, self.O_clf]
         self.idfs = [self.P_idf, self.I_idf, self.O_idf]
-        self.PICO_domains = ["Population", "Intervention", "Outcomes"]
+        self.PICO_domains = ["population", "intervention", "outcomes"]
 
         # if config.USE_METAMAP:
         #     self.metamap = MetaMap.get_instance()
