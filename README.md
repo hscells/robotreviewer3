@@ -1,4 +1,11 @@
 # RobotReviewer
+
+**Why the fork?** RobotReviewer3 is a big chunk of code that includes a web interface and a bunch of other stuff that isn't necessary for me. I'm interested in extracting PICO elements from medical citations (which is a small component of what RobotReviewer does).  
+
+**How do you use it?** I have some code that uses this API for automatically extracting PICO elements, but it's private at the the moment. If you need to see it, please contact me.
+
+_The original README is perserved below:_
+
 Automatic extraction of data from clinical trial reports
 
 RobotReviewer is a system for providing automatic annotations from clinical trials (in PDF format). Currently, RobotReviewer provides data on the trial *PICO* characteristics (Population, Interventions/Comparators, and Outcomes), and also automatically assesses trials for likely biases using the Cochrane Risk of Bias tool.
